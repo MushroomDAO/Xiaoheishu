@@ -5,8 +5,8 @@
 
 ## 从平台数据劳工变为数据矿主
 很简单的流程：
-[Your private experince] -->[Post on Xiaoheishu] --> [New customer with your barcode] --> [Get random promotion/coupon onsite from shops] --> [Share the revenue with you]
-[你的独特生活/人生体验] --> [发布在小黑书] --> [新客户去光顾shop带着你的barcode] --> [现场到店获得随机促销或者优惠券] --> [分享收入到你的数据贡献]
+- [Your private experince] -->[Post on Xiaoheishu] --> [New customer with your barcode] --> [Get random promotion/coupon onsite from shops] --> [Share the revenue with you]
+- [你的独特生活/人生体验] --> [发布在小黑书] --> [新客户去光顾shop带着你的barcode] --> [现场到店获得随机促销或者优惠券] --> [分享收入到你的数据贡献]
 
 ## 提供系列工具
 
