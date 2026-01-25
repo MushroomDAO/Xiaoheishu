@@ -26,6 +26,6 @@ Mobile App + 社区服务节点，保障数据隐私
 一个City会有三个到五个社区/个体提供基础节点服务
 
 ### 默认底层框架
-AAStar的AirAccount和SuperPaymaster，CometENS等等
+AAStar的AirAccount和SuperPaymaster，CometENS，COS72,MyNFT，MyPNTs，MyShops等等
 
 
