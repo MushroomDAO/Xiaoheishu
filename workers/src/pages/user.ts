@@ -105,7 +105,7 @@ export async function postPage(request: Request, env: Env, username: string, slu
 
   const galleryHtml = images.length > 1 ? `
     <div class="post-images">
-      ${images.slice(1, 5).map(img => `<img src="${img}" alt="" loading="lazy">`).join('')}
+      ${images.slice(1).map(img => `<img src="${img}" alt="" loading="lazy">`).join('')}
     </div>` : ''
 
   const jsonld = {

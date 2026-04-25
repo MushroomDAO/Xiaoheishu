@@ -37,7 +37,7 @@ restaurants:
 
 ### 找到它
 
-![福厨海鲜门口的白猫雕塑和招牌](images/2026-04-tianjin/fuchu-01-exterior-cat-statue.png)
+![福厨海鲜门口的白猫雕塑和招牌](images/2026-04-tianjin/fuchu-01-exterior-cat-statue.jpg)
 
 门口有一只白色的大猫雕塑，周围挂着大红灯笼，很好认。招牌是"福厨 FU CHU"，门头的宣传板写着：**懂天津，到福厨，吃天津**。
 
@@ -48,7 +48,7 @@ restaurants:
 
 预订电话：022-22938582
 
-![福厨海鲜室内环境，献花环绕的花园式布局](images/2026-04-tianjin/fuchu-02-interior-flower-garden.png)
+![福厨海鲜室内环境，献花环绕的花园式布局](images/2026-04-tianjin/fuchu-02-interior-flower-garden.jpg)
 
 ### 进门先看海鲜池
 
@@ -71,17 +71,17 @@ restaurants:
 - **海胆鲜肉水饺** 69元/份
 - 全家福水饺 88元/份
 
-![福厨海鲜海鲜展示台，带子蒜蓉粉丝78元、天鹅蛋62元](images/2026-04-tianjin/fuchu-06-seafood-display-1.png)
+![福厨海鲜海鲜展示台，带子蒜蓉粉丝78元、天鹅蛋62元](images/2026-04-tianjin/fuchu-06-seafood-display-1.jpg)
 
-![福厨海鲜海鲜展示台，扇贝、牡蛎、黄鱼等](images/2026-04-tianjin/fuchu-07-seafood-display-2.png)
+![福厨海鲜海鲜展示台，扇贝、牡蛎、黄鱼等](images/2026-04-tianjin/fuchu-07-seafood-display-2.jpg)
 
-![福厨海鲜手工鲜包水饺菜单，鲅鱼韭菜29元、海螺豆角39元](images/2026-04-tianjin/fuchu-08-menu-prices.png)
+![福厨海鲜手工鲜包水饺菜单，鲅鱼韭菜29元、海螺豆角39元](images/2026-04-tianjin/fuchu-08-menu-prices.jpg)
 
 ### 我们点了什么（双人套餐，约95元）
 
-![整桌菜品：干煸鱿鱼丝、水饺、豆腐丝、耗油生菜、果盘](images/2026-04-tianjin/fuchu-03-food-spread-1.png)
+![整桌菜品：干煸鱿鱼丝、水饺、豆腐丝、耗油生菜、果盘](images/2026-04-tianjin/fuchu-03-food-spread-1.jpg)
 
-![干煸鱿鱼丝和水饺特写](images/2026-04-tianjin/fuchu-04-food-spread-2.png)
+![干煸鱿鱼丝和水饺特写](images/2026-04-tianjin/fuchu-04-food-spread-2.jpg)
 
 - **干煸鱿鱼丝** — 满满一大盘，红辣椒和鱿鱼丝的比例夸张，干香下饭，味道出乎意料地好
 - **鲅鱼水饺** — 皮薄馅大，鲅鱼馅鲜而不腥，咬开有汁水
@@ -90,7 +90,7 @@ restaurants:
 - **耗油生菜** — 翠绿，蚝油味正，是整桌里颜色最好看的一道
 - **赠送果盘** — 小番茄、橙子
 
-![豆腐丝儿和赠送的果盘，分量满满](images/2026-04-tianjin/fuchu-05-tofu-strips-fruit.png)
+![豆腐丝儿和赠送的果盘，分量满满](images/2026-04-tianjin/fuchu-05-tofu-strips-fruit.jpg)
 
 ### 最让我印象深刻的细节
 
@@ -112,9 +112,9 @@ restaurants:
 
 ### 必点的两道菜
 
-![荣发号：八珍豆腐（红汤）和火爆三样儿、炒牛肉](images/2026-04-tianjin/rongfahao-01-dishes.png)
+![荣发号：八珍豆腐（红汤）和火爆三样儿、炒牛肉](images/2026-04-tianjin/rongfahao-01-dishes.jpg)
 
-![荣发号菜品俯视：八珍豆腐、火爆三样儿、米饭](images/2026-04-tianjin/rongfahao-02-dishes-overhead.png)
+![荣发号菜品俯视：八珍豆腐、火爆三样儿、米饭](images/2026-04-tianjin/rongfahao-02-dishes-overhead.jpg)
 
 **八珍豆腐**：浓红的汤底里浮着白嫩的豆腐，配料扎实，汤汁浓郁。天津本地人推荐的老招牌，值得尝一次。
 
