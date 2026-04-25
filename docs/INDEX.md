@@ -29,11 +29,11 @@
 
 | 阶段 | 核心目标 | 状态 | 详情 |
 |------|---------|------|------|
-| **Phase 1** | GEO 实验：验证内容能被 AI 引用 | 🟡 进行中 | [→ phase1-geo/](phase1-geo/README.md) |
-| **Phase 2** | Web MVP：单用户内容发布 + GEO 流程 | 🟢 启动 | [→ phase2-web/](phase2-web/README.md) |
-| **Phase 3** | 多租户系统：`yourname.xiaoheishu.xyz` | ⏳ 等待 | [→ phase3-multitenant/](phase3-multitenant/README.md) |
-| **Phase 4** | 移动端 App：拍照+说话→自动发布 | ⏳ 等待 | [→ phase4-mobile/](phase4-mobile/README.md) |
-| **Phase 5** | Blog 平台增强：多平台发布完善 | 🟡 并行 | [→ phase5-platform/](phase5-platform/README.md) |
+| **Phase 1** | GEO 实验：验证真实内容能被 AI 引擎引用 | 🟡 进行中 | [→ phase1-geo/](phase1-geo/README.md) |
+| **Phase 2** | Web 平台：xiaoheishu.xyz 多租户上线（Workers + D1）| ✅ 已上线 | [→ phase2-web/](phase2-web/README.md) |
+| **Phase 3** | Desktop App：Electron GUI + 多平台一键发布 | 🔨 进行中 | [→ phase3-desktop/](phase3-desktop/README.md) |
+| **Phase 4** | Mobile App：Capacitor，本地 AI 语音，拍照发布 | ⏳ 等待 | [→ phase4-mobile/](phase4-mobile/README.md) |
+| **Phase 5** | Spores 协议：链上无许可分成机制 | ⏳ 等待 | [→ phase5-platform/](phase5-platform/README.md) |
 
 ---
 
@@ -56,10 +56,19 @@ content/
 
 ---
 
-## 当前待办（本周）
+## 当前待办
 
-- [ ] Phase 1：把天津美食文章发布到小红书 + 公众号（让 AI 爬虫可索引）
-- [ ] Phase 1：7天后首次测试 AI 引用情况（`docs/phase1-geo/geo-tracking-tianjin.md`）
-- [ ] Phase 2：确认技术选型（见 `phase2-web/README.md` 讨论点）
-- [ ] Phase 2：搭建 Next.js 项目骨架，部署到 xiaoheishu.xyz
-- [ ] Phase 5：扩展 blog M2/M3 pipeline，支持 Twitter 发布
+### Phase 1 GEO（并行进行）
+- [ ] 天津文章发布到小红书（人类端扩散）
+- [ ] 天津文章发布到公众号
+- [ ] **2026-05-02**：首次 AI 引擎引用测试（见 `phase1-geo/geo-tracking-tianjin.md`）
+
+### Phase 3 Desktop App（主线）
+- [x] 技术选型：Electron + TypeScript + React + SQLite（macOS 先行）
+- [ ] 初始化 `desktop/` 项目骨架
+- [ ] 本地内容管理（SQLite + Markdown 编辑器）
+- [ ] 内嵌预览站（Express + 复用 xiaoheishu.xyz 样式）
+- [ ] 接入微信公众号发布（复用 blog pipeline）
+- [ ] 接入小红书发布（复用 Go MCP + CDP）
+- [ ] 接入 xiaoheishu.xyz 发布（Workers D1 API）
+- [ ] macOS .dmg 打包发布
