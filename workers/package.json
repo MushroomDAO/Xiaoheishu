@@ -1,0 +1,21 @@
+{
+  "name": "xiaoheishu-workers",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute xiaoheishu-db --file=schema.sql",
+    "db:seed": "wrangler d1 execute xiaoheishu-db --file=seed.sql",
+    "db:init:remote": "wrangler d1 execute xiaoheishu-db --remote --file=schema.sql",
+    "db:seed:remote": "wrangler d1 execute xiaoheishu-db --remote --file=seed.sql"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250422.0",
+    "typescript": "^5.4.0",
+    "wrangler": "^4.0.0"
+  }
+}

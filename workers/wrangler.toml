@@ -1,0 +1,27 @@
+name = "xiaoheishu"
+main = "src/index.ts"
+compatibility_date = "2026-04-25"
+compatibility_flags = ["nodejs_compat"]
+
+routes = [
+  { pattern = "xiaoheishu.xyz/*", zone_name = "xiaoheishu.xyz" },
+  { pattern = "www.xiaoheishu.xyz/*", zone_name = "xiaoheishu.xyz" },
+  { pattern = "*.xiaoheishu.xyz/*", zone_name = "xiaoheishu.xyz" },
+]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "xiaoheishu-db"
+database_id = "b0f1ca9e-b110-4fd7-88ae-d3bd1a212f9d"
+
+# R2 — enable R2 in Cloudflare Dashboard first, then uncomment:
+# [[r2_buckets]]
+# binding = "IMAGES"
+# bucket_name = "xiaoheishu-images"
+
+[vars]
+BASE_DOMAIN = "xiaoheishu.xyz"
+GITHUB_IMAGES_BASE = "https://raw.githubusercontent.com/MushroomDAO/Xiaoheishu/main/content"
+
+[dev]
+port = 8787
