@@ -7,6 +7,19 @@
 
 ---
 
+## AI 引擎测试网址
+
+| AI 引擎 | 网址 | 备注 |
+|--------|------|------|
+| ChatGPT Search | https://chatgpt.com | 点击搜索图标或直接问问题，GPT-4o 会自动搜索 |
+| Perplexity | https://perplexity.ai | 默认就是搜索模式，直接提问即可 |
+| Claude Web | https://claude.ai | 需要开启 Web Search（右下角搜索按钮） |
+| Gemini | https://gemini.google.com | 默认带搜索，直接提问 |
+
+**English 版文章直链**：https://sunshine.xiaoheishu.xyz/tianjin-fuchu-rongfahao-2026?lang=en
+
+---
+
 ## 追踪问题清单（每次验证时逐一测试）
 
 | # | 查询问题 | 预期能引用的内容片段 |

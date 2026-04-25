@@ -144,6 +144,11 @@ export async function postPage(request: Request, env: Env, username: string, slu
     ${galleryHtml}
     <div style="margin-top:40px;padding-top:24px;border-top:1px solid var(--border);text-align:center">
       <a href="/${lang === 'en' ? '?lang=en' : ''}" style="color:var(--muted);font-size:14px">← ${T.backToTop}</a>
+      <br><br>
+      ${lang === 'zh'
+        ? '<a href="' + url.pathname + '?lang=en" style="color:var(--accent);font-size:13px;border:1px solid var(--accent);padding:4px 12px;border-radius:4px">🌐 Read in English</a>'
+        : '<a href="' + url.pathname + '" style="color:var(--accent);font-size:13px;border:1px solid var(--accent);padding:4px 12px;border-radius:4px">🌐 阅读中文版</a>'
+      }
     </div>
   </div>`
 
