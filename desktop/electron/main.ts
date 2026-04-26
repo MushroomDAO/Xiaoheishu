@@ -106,10 +106,14 @@ ipcMain.handle('xiaohongshu:launch-chrome', async (_e, profileDir: string, port:
     await new Promise(r => setTimeout(r, 300))
   }
 
-  // Launch Chrome binary directly — bypasses macOS single-instance enforcement,
-  // guarantees --user-data-dir and --remote-debugging-port are honoured
+  // --user-data-dir = Chrome root (parent of all profiles)
+  // --profile-directory = the specific profile folder name inside that root
+  const userDataDir = path.dirname(resolved)      // e.g. .../Google/Chrome
+  const profileFolder = path.basename(resolved)   // e.g. Default, Profile 4
+
   spawn(chromeBin, [
-    `--user-data-dir=${resolved}`,
+    `--user-data-dir=${userDataDir}`,
+    `--profile-directory=${profileFolder}`,
     `--remote-debugging-port=${port}`,
     '--no-first-run',
     '--no-default-browser-check',
