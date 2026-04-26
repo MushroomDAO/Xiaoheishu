@@ -32,11 +32,13 @@ export default function Settings() {
   const [cdpState, setCdpState] = useState<CdpState>('unknown')
   const [launching, setLaunching] = useState(false)
   const [cdpDiag, setCdpDiag] = useState('')
+  const [chromeRunning, setChromeRunning] = useState(false)
 
   useEffect(() => {
     (window as any).xhs.settingsLoad().then((s: AppSettings) => setForm(s))
     ;(window as any).xhs.xiaohongshuLoginStatus().then((r: { loggedIn: boolean }) => setXhsLoggedIn(r.loggedIn))
     ;(window as any).xhs.listChromeProfiles().then((p: ChromeProfile[]) => setChromeProfiles(p))
+    ;(window as any).xhs.xiaohongshuChromeRunning().then((r: { running: boolean }) => setChromeRunning(r.running))
   }, [])
 
   function update(key: keyof AppSettings, val: string) {
@@ -288,11 +290,16 @@ export default function Settings() {
               }}>
                 <p style={{ color: 'var(--text)', marginBottom: 6, fontWeight: 500 }}>Launch Chrome with debug port</p>
                 <p style={{ color: 'var(--muted)', marginBottom: 4 }}>
-                  CDP debug port must be enabled <strong style={{ color: 'var(--text)' }}>at Chrome startup</strong> — you cannot attach to an already-running Chrome.
-                  This button closes Chrome and relaunches it with the selected profile + port {form.xiaohongshu_cdp_port || '9222'}.
+                  CDP debug port must be set <strong style={{ color: 'var(--text)' }}>at Chrome startup</strong> — you cannot attach to an already-running Chrome without it.
+                  This button quits Chrome completely, then relaunches with your profile + debug port {form.xiaohongshu_cdp_port || '9222'}.
                 </p>
-                <p style={{ color: 'var(--muted)', marginBottom: 10 }}>
-                  Chrome keeps the debug port open until you close it. You only need to do this once per session.
+                {chromeRunning && (
+                  <p style={{ color: '#fb923c', fontSize: 12, marginBottom: 8, fontWeight: 500 }}>
+                    ⚠ Chrome is currently running. The button will quit it first — save any open work before clicking.
+                  </p>
+                )}
+                <p style={{ color: 'var(--muted)', marginBottom: 10, fontSize: 11 }}>
+                  Alternatively: manually Cmd+Q Chrome, then click Launch.
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <button

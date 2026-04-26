@@ -97,27 +97,36 @@ ipcMain.handle('xiaohongshu:cdp-status', async (_e, port: number) => {
   return { connected, hasDebugFlag, debugProcessLine: psResult.stdout.trim().slice(0, 120) }
 })
 
+ipcMain.handle('xiaohongshu:chrome-running', () => {
+  const r = spawnSync('pgrep', ['-x', 'Google Chrome'], { encoding: 'utf-8' })
+  return { running: r.status === 0 }
+})
+
 ipcMain.handle('xiaohongshu:launch-chrome', async (_e, profileDir: string, port: number) => {
   const resolved = profileDir.replace(/^~/, os.homedir())
   const userDataDir = path.dirname(resolved)    // .../Google/Chrome
   const profileFolder = path.basename(resolved) // Default, Profile 4
 
-  // Step 1: graceful quit via AppleScript (avoids crash-recovery on next launch)
-  spawnSync('osascript', ['-e', 'quit app "Google Chrome"'], { encoding: 'utf-8' })
+  // Step 1: graceful quit + force kill all Chrome processes
+  spawnSync('osascript', ['-e', 'tell application "Google Chrome" to quit'], { encoding: 'utf-8' })
 
-  // Step 2: wait for ALL Chrome processes to exit (not just the main one)
-  const killDeadline = Date.now() + 6000
+  // Wait up to 10s for ALL Chrome processes to fully exit
+  const killDeadline = Date.now() + 10000
   while (Date.now() < killDeadline) {
     const alive = spawnSync('pgrep', ['-f', 'Google Chrome'], { encoding: 'utf-8' })
     if (alive.status !== 0) break
-    await new Promise(r => setTimeout(r, 400))
+    await new Promise(r => setTimeout(r, 500))
   }
-  // Force-kill any stubborn remnants (helpers, framework processes)
   spawnSync('pkill', ['-9', '-f', 'Google Chrome'], { encoding: 'utf-8' })
-  await new Promise(r => setTimeout(r, 800))
+  await new Promise(r => setTimeout(r, 2000)) // extra wait after force kill
 
-  // Step 3: launch with open -na (new instance, all args honoured since Chrome is dead)
-  // open -na is more reliable than spawning the binary directly on macOS
+  // Step 2: verify Chrome is truly dead
+  const stillAlive = spawnSync('pgrep', ['-f', 'Google Chrome'], { encoding: 'utf-8' })
+  if (stillAlive.status === 0) {
+    throw new Error('Chrome processes still running after kill attempt. Please quit Chrome manually (Cmd+Q) and try again.')
+  }
+
+  // Step 3: open -na works reliably when Chrome is completely dead
   spawnSync('open', [
     '-na', 'Google Chrome',
     '--args',
