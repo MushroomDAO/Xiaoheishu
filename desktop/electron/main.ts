@@ -76,7 +76,9 @@ import { loadSettings, saveSettings } from './settings'
 ipcMain.handle('settings:load', () => loadSettings())
 ipcMain.handle('settings:save', (_e, s: Record<string, string>) => saveSettings(s))
 
-import { hasCookies, loginWithQR } from './publishers/xiaohongshu'
+import { hasCookies, loginWithQR, probeCdp } from './publishers/xiaohongshu'
+import { execSync, spawnSync } from 'child_process'
+import os from 'os'
 
 ipcMain.handle('xiaohongshu:login', async () => {
   await loginWithQR()
@@ -85,6 +87,26 @@ ipcMain.handle('xiaohongshu:login', async () => {
 
 ipcMain.handle('xiaohongshu:login-status', () => {
   return { loggedIn: hasCookies() }
+})
+
+ipcMain.handle('xiaohongshu:cdp-status', async (_e, port: number) => {
+  return { connected: await probeCdp(port) }
+})
+
+ipcMain.handle('xiaohongshu:launch-chrome', (_e, profileDir: string, port: number) => {
+  const resolved = profileDir.replace(/^~/, os.homedir())
+  // Kill any running Chrome first so the profile isn't locked
+  spawnSync('pkill', ['-x', 'Google Chrome'], { encoding: 'utf-8' })
+  // Give it a moment to shut down
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1500)
+  execSync(
+    `open -a "Google Chrome" --args` +
+    ` --user-data-dir="${resolved}"` +
+    ` --remote-debugging-port=${port}` +
+    ` --no-first-run` +
+    ` --no-default-browser-check`,
+  )
+  return { ok: true }
 })
 
 ipcMain.handle('xiaohongshu:list-profiles', () => {

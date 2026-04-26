@@ -12,6 +12,7 @@ interface AppSettings {
 }
 
 type TestState = 'idle' | 'testing' | 'ok' | 'fail'
+type CdpState = 'unknown' | 'checking' | 'connected' | 'disconnected'
 interface ChromeProfile { folder: string; fullPath: string; name: string; email: string }
 
 export default function Settings() {
@@ -28,6 +29,8 @@ export default function Settings() {
   const [xhsLoggedIn, setXhsLoggedIn] = useState(false)
   const [xhsLogging, setXhsLogging] = useState(false)
   const [chromeProfiles, setChromeProfiles] = useState<ChromeProfile[]>([])
+  const [cdpState, setCdpState] = useState<CdpState>('unknown')
+  const [launching, setLaunching] = useState(false)
 
   useEffect(() => {
     (window as any).xhs.settingsLoad().then((s: AppSettings) => setForm(s))
@@ -45,6 +48,43 @@ export default function Settings() {
     await (window as any).xhs.settingsSave(form)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function checkCdp() {
+    const port = parseInt(form.xiaohongshu_cdp_port || '9222', 10)
+    setCdpState('checking')
+    try {
+      const r = await (window as any).xhs.xiaohongshuCdpStatus(port)
+      setCdpState(r.connected ? 'connected' : 'disconnected')
+    } catch {
+      setCdpState('disconnected')
+    }
+  }
+
+  async function launchChrome() {
+    if (!form.xiaohongshu_profile_dir) {
+      alert('Please select a Chrome profile directory first.')
+      return
+    }
+    const port = parseInt(form.xiaohongshu_cdp_port || '9222', 10)
+    setLaunching(true)
+    setCdpState('checking')
+    try {
+      await (window as any).xhs.xiaohongshuLaunchChrome(form.xiaohongshu_profile_dir, port)
+      // Poll for CDP to become ready (up to 15s)
+      const deadline = Date.now() + 15000
+      while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 1000))
+        const r = await (window as any).xhs.xiaohongshuCdpStatus(port)
+        if (r.connected) { setCdpState('connected'); return }
+      }
+      setCdpState('disconnected')
+    } catch (e: any) {
+      setCdpState('disconnected')
+      alert('Launch failed: ' + (e.message || e))
+    } finally {
+      setLaunching(false)
+    }
   }
 
   async function xhsLogin() {
@@ -177,12 +217,11 @@ export default function Settings() {
             />
             <div>
               <label htmlFor="xhs-advanced" style={{ fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                Advanced mode — use existing Chrome session
+                Advanced mode — use your Chrome session (recommended)
               </label>
               <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, lineHeight: 1.6 }}>
-                When enabled, the app first checks if Chrome is running with a remote debug port.
-                If found, it publishes through your existing Chrome session (already logged in).
-                If not found, falls back to QR cookie session silently.
+                Connects to your real Chrome via CDP debug port. Your existing 小红书 login in Chrome is reused directly —
+                no QR code needed. <strong style={{ color: 'var(--text)' }}>Chrome must be launched with the debug port first</strong> (use the button below).
               </p>
             </div>
           </div>
@@ -205,9 +244,6 @@ export default function Settings() {
                         </option>
                       ))}
                     </select>
-                    <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-                      Or enter manually: full path to the Chrome profile folder
-                    </p>
                     <input className="editor-input" value={form.xiaohongshu_profile_dir}
                       onChange={e => update('xiaohongshu_profile_dir', e.target.value)}
                       placeholder="~/Library/Application Support/Google/Chrome/Profile 4"
@@ -224,16 +260,42 @@ export default function Settings() {
                   onChange={e => update('xiaohongshu_cdp_port', e.target.value)}
                   placeholder="9222" style={{ width: 100 }} />
               </Field>
+
+              {/* CDP status + launch button */}
               <div style={{
                 background: 'var(--surface2)', borderRadius: 8, padding: '12px 14px', fontSize: 12, lineHeight: 1.7,
               }}>
-                <p style={{ color: 'var(--text)', marginBottom: 4, fontWeight: 500 }}>How it works:</p>
-                <p style={{ color: 'var(--muted)', marginBottom: 8 }}>
-                  App launches your Chrome with the selected profile and a remote debug port, then connects via CDP.
-                  No separate Chromium needed — uses your existing Chrome login session directly.
+                <p style={{ color: 'var(--text)', marginBottom: 6, fontWeight: 500 }}>Step 1 — Launch Chrome with debug port</p>
+                <p style={{ color: 'var(--muted)', marginBottom: 10 }}>
+                  This will close your existing Chrome and reopen it with the selected profile + debug port {form.xiaohongshu_cdp_port || '9222'}.
+                  Your 小红书 login session in that profile will be reused for publishing.
                 </p>
-                <p style={{ color: '#f87171' }}>
-                  ⚠ Security: any local process can connect to this port. Personal machine only.
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    className="btn"
+                    style={{ fontSize: 12, padding: '4px 14px' }}
+                    disabled={launching || !form.xiaohongshu_profile_dir}
+                    onClick={launchChrome}
+                  >
+                    {launching ? 'Launching…' : 'Launch Chrome with Debug Port'}
+                  </button>
+                  <button
+                    className="btn"
+                    style={{ fontSize: 12, padding: '4px 10px' }}
+                    onClick={checkCdp}
+                    disabled={cdpState === 'checking'}
+                  >
+                    {cdpState === 'checking' ? 'Checking…' : 'Check Connection'}
+                  </button>
+                  {cdpState === 'connected' && (
+                    <span style={{ fontSize: 12, color: '#4ade80' }}>● Connected</span>
+                  )}
+                  {cdpState === 'disconnected' && (
+                    <span style={{ fontSize: 12, color: '#f87171' }}>● Not connected — launch Chrome first</span>
+                  )}
+                </div>
+                <p style={{ color: '#f87171', marginTop: 8, marginBottom: 0 }}>
+                  ⚠ Security: any local process can connect to this debug port. Personal machine only.
                 </p>
               </div>
               <StatusRow label="Profile" status={form.xiaohongshu_profile_dir ? 'configured' : 'not_set'} />
