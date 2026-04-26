@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld('xhs', {
   xiaohongshuLogin: () => ipcRenderer.invoke('xiaohongshu:login'),
   xiaohongshuLoginStatus: () => ipcRenderer.invoke('xiaohongshu:login-status'),
   xiaohongshuCdpStatus: (port: number) => ipcRenderer.invoke('xiaohongshu:cdp-status', port),
-  xiaohongshuChromeRunning: () => ipcRenderer.invoke('xiaohongshu:chrome-running'),
-  xiaohongshuLaunchChrome: (profileDir: string, port: number) => ipcRenderer.invoke('xiaohongshu:launch-chrome', profileDir, port),
+  xiaohongshuAgentStatus: () => ipcRenderer.invoke('xiaohongshu:agent-status'),
+  xiaohongshuInstallAgent: (profileDir: string, port: number) => ipcRenderer.invoke('xiaohongshu:install-agent', profileDir, port),
+  xiaohongshuStartAgent: () => ipcRenderer.invoke('xiaohongshu:start-agent'),
+  xiaohongshuUninstallAgent: () => ipcRenderer.invoke('xiaohongshu:uninstall-agent'),
 })

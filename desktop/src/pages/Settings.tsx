@@ -32,13 +32,13 @@ export default function Settings() {
   const [cdpState, setCdpState] = useState<CdpState>('unknown')
   const [launching, setLaunching] = useState(false)
   const [cdpDiag, setCdpDiag] = useState('')
-  const [chromeRunning, setChromeRunning] = useState(false)
+  const [agentInstalled, setAgentInstalled] = useState(false)
 
   useEffect(() => {
     (window as any).xhs.settingsLoad().then((s: AppSettings) => setForm(s))
     ;(window as any).xhs.xiaohongshuLoginStatus().then((r: { loggedIn: boolean }) => setXhsLoggedIn(r.loggedIn))
     ;(window as any).xhs.listChromeProfiles().then((p: ChromeProfile[]) => setChromeProfiles(p))
-    ;(window as any).xhs.xiaohongshuChromeRunning().then((r: { running: boolean }) => setChromeRunning(r.running))
+    ;(window as any).xhs.xiaohongshuAgentStatus().then((r: { installed: boolean }) => setAgentInstalled(r.installed))
   }, [])
 
   function update(key: keyof AppSettings, val: string) {
@@ -60,51 +60,32 @@ export default function Settings() {
     try {
       const r = await (window as any).xhs.xiaohongshuCdpStatus(port) as { connected: boolean; hasDebugFlag: boolean; debugProcessLine: string }
       setCdpState(r.connected ? 'connected' : 'disconnected')
-      if (!r.connected) {
-        setCdpDiag(r.hasDebugFlag
-          ? `Chrome has debug flag but port not responding: ${r.debugProcessLine}`
-          : 'Chrome has NO --remote-debugging-port flag — it was launched without debug port')
-      } else {
-        setCdpDiag('')
-      }
+      setCdpDiag(r.connected ? '' : (r.hasDebugFlag ? `Chrome running but port not binding: ${r.debugProcessLine}` : 'Chrome not running with debug port'))
     } catch {
       setCdpState('disconnected')
     }
   }
 
-  function copyLaunchCmd() {
-    const dir = form.xiaohongshu_profile_dir
-    const port = form.xiaohongshu_cdp_port || '9222'
-    if (!dir) { alert('Select a Chrome profile first.'); return }
-    const userDataDir = dir.replace(/\/[^/]+$/, '')  // parent dir
-    const profileFolder = dir.replace(/.*\//, '')     // last segment
-    const cmd = `open -na "Google Chrome" --args --user-data-dir="${userDataDir}" --profile-directory="${profileFolder}" --remote-debugging-port=${port} --no-first-run --no-default-browser-check`
-    navigator.clipboard.writeText(cmd)
-    alert('Command copied! Paste in Terminal after closing Chrome.')
-  }
-
-  async function launchChrome() {
-    if (!form.xiaohongshu_profile_dir) {
-      alert('Please select a Chrome profile directory first.')
-      return
-    }
+  async function installAndStartAgent() {
+    if (!form.xiaohongshu_profile_dir) { alert('Select a Chrome profile first.'); return }
     const port = parseInt(form.xiaohongshu_cdp_port || '9222', 10)
     setLaunching(true)
     setCdpState('checking')
     try {
-      await (window as any).xhs.xiaohongshuLaunchChrome(form.xiaohongshu_profile_dir, port)
-      // Poll for CDP to become ready (up to 30s — Chrome can be slow to start debug server)
+      await (window as any).xhs.xiaohongshuInstallAgent(form.xiaohongshu_profile_dir, port)
+      await (window as any).xhs.xiaohongshuStartAgent()
+      // Poll up to 30s
       const deadline = Date.now() + 30000
       while (Date.now() < deadline) {
         await new Promise(r => setTimeout(r, 1500))
         const r = await (window as any).xhs.xiaohongshuCdpStatus(port)
         if (r.connected) { setCdpState('connected'); return }
       }
-      // Timed out — Chrome may still be starting, user can click Check Connection manually
       setCdpState('disconnected')
+      setCdpDiag('Agent started but Chrome debug port not responding — check /tmp/xiaoheishu-chrome.err')
     } catch (e: any) {
       setCdpState('disconnected')
-      alert('Launch failed: ' + (e.message || e))
+      alert('Failed: ' + (e.message || e))
     } finally {
       setLaunching(false)
     }
@@ -284,64 +265,34 @@ export default function Settings() {
                   placeholder="9222" style={{ width: 100 }} />
               </Field>
 
-              {/* CDP status + launch button */}
-              <div style={{
-                background: 'var(--surface2)', borderRadius: 8, padding: '12px 14px', fontSize: 12, lineHeight: 1.7,
-              }}>
-                <p style={{ color: 'var(--text)', marginBottom: 6, fontWeight: 500 }}>Launch Chrome with debug port</p>
-                <p style={{ color: 'var(--muted)', marginBottom: 4 }}>
-                  CDP debug port must be set <strong style={{ color: 'var(--text)' }}>at Chrome startup</strong> — you cannot attach to an already-running Chrome without it.
-                  This button quits Chrome completely, then relaunches with your profile + debug port {form.xiaohongshu_cdp_port || '9222'}.
+              {/* LaunchAgent — same approach as xhs-mcp-cdp SKILL.md */}
+              <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '12px 14px', fontSize: 12, lineHeight: 1.7 }}>
+                <p style={{ color: 'var(--text)', marginBottom: 4, fontWeight: 500 }}>
+                  Background service (LaunchAgent) — same as xhs-mcp-cdp
                 </p>
-                {chromeRunning && (
-                  <p style={{ color: '#fb923c', fontSize: 12, marginBottom: 8, fontWeight: 500 }}>
-                    ⚠ Chrome is currently running. The button will quit it first — save any open work before clicking.
-                  </p>
-                )}
-                <p style={{ color: 'var(--muted)', marginBottom: 10, fontSize: 11 }}>
-                  Alternatively: manually Cmd+Q Chrome, then click Launch.
+                <p style={{ color: 'var(--muted)', marginBottom: 10 }}>
+                  Installs a macOS LaunchAgent that starts Chrome with debug port on login, completely independent of this app.
+                  Click <strong style={{ color: 'var(--text)' }}>Install &amp; Start</strong> once — Chrome will stay ready automatically.
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <button
-                    className="btn"
-                    style={{ fontSize: 12, padding: '4px 14px' }}
+                  <button className="btn" style={{ fontSize: 12, padding: '4px 14px' }}
                     disabled={launching || !form.xiaohongshu_profile_dir}
-                    onClick={launchChrome}
-                  >
-                    {launching ? 'Launching… (checking port)' : 'Launch Chrome with Debug Port'}
+                    onClick={installAndStartAgent}>
+                    {launching ? 'Starting…' : agentInstalled ? 'Reinstall & Start' : 'Install & Start'}
                   </button>
-                  <button
-                    className="btn"
-                    style={{ fontSize: 12, padding: '4px 10px' }}
-                    onClick={checkCdp}
-                    disabled={cdpState === 'checking'}
-                  >
+                  <button className="btn" style={{ fontSize: 12, padding: '4px 10px' }}
+                    onClick={checkCdp} disabled={cdpState === 'checking'}>
                     {cdpState === 'checking' ? 'Checking…' : 'Check Connection'}
                   </button>
-                  {cdpState === 'connected' && (
-                    <span style={{ fontSize: 12, color: '#4ade80' }}>● Connected — ready to publish</span>
-                  )}
-                  {cdpState === 'disconnected' && (
-                    <span style={{ fontSize: 12, color: '#f87171' }}>● Not connected</span>
-                  )}
-                {cdpDiag && (
-                  <p style={{ fontSize: 11, color: '#f87171', marginTop: 6, marginBottom: 0, fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                    ⚠ {cdpDiag}
-                  </p>
-                )}
+                  {cdpState === 'connected' && <span style={{ fontSize: 12, color: '#4ade80' }}>● Connected</span>}
+                  {cdpState === 'disconnected' && <span style={{ fontSize: 12, color: '#f87171' }}>● Not connected</span>}
                 </div>
-                <div style={{ marginTop: 8 }}>
-                  <button className="btn" style={{ fontSize: 11, padding: '3px 10px', opacity: 0.7 }} onClick={copyLaunchCmd}>
-                    Copy launch command (manual fallback)
-                  </button>
-                  <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8 }}>
-                    If auto-launch fails, paste this in Terminal after closing Chrome.
-                  </span>
-                </div>
+                {cdpDiag && <p style={{ fontSize: 11, color: '#f87171', marginTop: 6, marginBottom: 0 }}>⚠ {cdpDiag}</p>}
                 <p style={{ color: '#f87171', marginTop: 8, marginBottom: 0 }}>
                   ⚠ Security: any local process can connect to this debug port. Personal machine only.
                 </p>
               </div>
+              <StatusRow label="Agent" status={agentInstalled ? 'configured' : 'not_set'} />
               <StatusRow label="Profile" status={form.xiaohongshu_profile_dir ? 'configured' : 'not_set'} />
             </>
           )}
