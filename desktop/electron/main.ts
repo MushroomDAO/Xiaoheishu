@@ -137,7 +137,7 @@ ipcMain.handle('xiaohongshu:launch-chrome', async (_e, profileDir: string, port:
     ` --no-first-run` +
     ` --no-default-browser-check` +
     ` "https://creator.xiaohongshu.com/publish/publish?source=official"`,
-    { shell: true }
+    { shell: '/bin/sh' }
   )
 
   return { ok: true }
