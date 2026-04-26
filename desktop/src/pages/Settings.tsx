@@ -256,8 +256,9 @@ export default function Settings() {
                 </p>
                 <p style={{ color: 'var(--muted)', marginBottom: 10 }}>
                   Pick one of your Chrome profiles to clone into <code>~/.xiaoheishu/chrome-profile</code>.
-                  Cookies, history, login state are copied (caches excluded). The dedicated Chrome looks
-                  like a real user instead of a fresh empty browser.
+                  Only identity files are copied (cookies, history, logins, bookmarks, autofill, favicons) —
+                  extensions, IndexedDB, OPFS, caches are all skipped. Expected size <strong>~100 MB</strong>,
+                  finishes in seconds.
                   <br/>
                   <strong style={{ color: 'var(--text)' }}>Quit Google Chrome before clicking</strong> — open Chrome holds locks on the SQLite files.
                 </p>

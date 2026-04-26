@@ -278,7 +278,12 @@ ipcMain.handle('xiaohongshu:initialize-profile', async (_e, sourcePath: string) 
   const args = [
     '-a',
     '--delete',
-    // Caches Chrome rebuilds on first launch
+    // We only need identity files (cookies, history, login data, prefs,
+    // bookmarks, favicons) to look like a real user. Skip everything else
+    // — extensions, web-app local storage, caches — which add gigabytes
+    // for no benefit on a publishing-only Chrome.
+    //
+    // Caches (Chrome rebuilds on first launch):
     '--exclude=Cache',
     '--exclude=Code Cache',
     '--exclude=GPUCache',
@@ -290,12 +295,22 @@ ipcMain.handle('xiaohongshu:initialize-profile', async (_e, sourcePath: string) 
     '--exclude=ScriptCache',
     '--exclude=component_crx_cache',
     '--exclude=optimization_guide_model_store',
-    '--exclude=Service Worker/CacheStorage',
-    '--exclude=Service Worker/ScriptCache',
-    // OPFS storage — web-app file caches, can be huge (multi-GB) and unrelated
-    // to login state. Keep IndexedDB/Local Storage which DO hold session data.
+    // Extensions (~600 MB+) — irrelevant to XHS publishing
+    '--exclude=Extensions',
+    '--exclude=Extension Rules',
+    '--exclude=Extension Scripts',
+    '--exclude=Extension State',
+    '--exclude=Local Extension Settings',
+    '--exclude=Managed Extension Settings',
+    '--exclude=DNR Extension Rules',
+    '--exclude=Sync Extension Settings',
+    // Web-app local DBs (~200 MB) — irrelevant to login state
+    '--exclude=IndexedDB',
+    '--exclude=Service Worker',
     '--exclude=File System',
     '--exclude=blob_storage',
+    '--exclude=databases',
+    '--exclude=shared_proto_db',
     // SQLite WAL journals (regenerated) and per-instance lock files
     '--exclude=*-journal',
     '--exclude=Singleton*',
