@@ -138,7 +138,7 @@ open -na "Google Chrome" --args \\
 # Poll for port to bind (up to 15 seconds) so we know launch actually succeeded
 for i in $(seq 1 15); do
   if curl -s "http://localhost:$PORT/json/version" > /dev/null 2>&1; then
-    log "Chrome CDP ready on port $PORT after ${i}s"
+    log "Chrome CDP ready on port $PORT after \${i}s"
     exit 0
   fi
   sleep 1
