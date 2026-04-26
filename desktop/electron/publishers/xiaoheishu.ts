@@ -1,34 +1,55 @@
-// Publishes to xiaoheishu.xyz via Workers D1 REST API
-// Requires env: XIAOHEISHU_API_URL, XIAOHEISHU_USERNAME, XIAOHEISHU_PASSWORD
+import { loadSettings } from '../settings'
+
+async function login(username: string, password: string): Promise<string> {
+  const res = await fetch(`https://${username}.xiaoheishu.xyz/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText })) as { error?: string }
+    throw new Error(`Login failed: ${err.error || res.status}`)
+  }
+  const data = await res.json() as { token: string }
+  return data.token
+}
 
 export async function publish(post: Record<string, unknown>) {
-  const base = process.env.XIAOHEISHU_API_URL || 'https://xiaoheishu.xyz'
-  const username = process.env.XIAOHEISHU_USERNAME
-  if (!username) throw new Error('XIAOHEISHU_USERNAME not set')
+  const { xhs_username: username, xhs_password: password } = loadSettings()
 
-  const tags = JSON.parse((post.tags as string) || '[]')
-  const slug = String(post.title).toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
-    .replace(/^-|-$/g, '') + '-' + Date.now().toString(36)
-
-  // TODO: authenticate via session cookie (use upload POST endpoint)
-  // For now, use the Workers upload endpoint with password auth
-  const form = new FormData()
-  form.append('title', String(post.title))
-  form.append('title_en', String(post.title_en || ''))
-  form.append('content', String(post.content))
-  form.append('content_en', String(post.content_en || ''))
-  form.append('city', String(post.city || ''))
-  form.append('tags', tags.join(', '))
-
-  const res = await fetch(`https://${username}.xiaoheishu.xyz/upload`, {
-    method: 'POST',
-    body: form,
-  })
-
-  if (!res.ok && res.status !== 302) {
-    throw new Error(`xiaoheishu.xyz publish failed: ${res.status}`)
+  if (!username || !password) {
+    throw new Error('小黑书 credentials not configured — go to Settings → 小黑书')
   }
 
-  return { url: `https://${username}.xiaoheishu.xyz/${slug}` }
+  const tags: string[] = (() => {
+    try { return JSON.parse(String(post.tags || '[]')) } catch { return [] }
+  })()
+
+  const token = await login(username, password)
+
+  const res = await fetch(`https://${username}.xiaoheishu.xyz/api/posts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      title: post.title,
+      title_en: post.title_en || '',
+      content: post.content,
+      content_en: post.content_en || '',
+      city: post.city || '',
+      tags,
+      cover_image: post.cover_image || '',
+      images: post.images || '[]',
+    }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => String(res.status))
+    throw new Error(`xiaoheishu.xyz ${res.status}: ${text}`)
+  }
+
+  const data = await res.json() as { slug?: string; url?: string }
+  return { url: data.url || `https://${username}.xiaoheishu.xyz/${data.slug || ''}` }
 }

@@ -27,8 +27,8 @@ export default function Library({ onEdit, onPublish }: {
   return (
     <>
       <div className="topbar">
-        <span className="topbar-title">内容库</span>
-        <button className="btn btn-primary" onClick={() => onEdit()}>+ 新建</button>
+        <span className="topbar-title">Library</span>
+        <button className="btn btn-primary" onClick={() => onEdit()}>+ New Post</button>
       </div>
       <div className="content">
         {posts.length === 0 ? (
@@ -41,6 +41,12 @@ export default function Library({ onEdit, onPublish }: {
               const platforms = JSON.parse(post.published_platforms || '{}')
               return (
                 <div key={post.id} className="post-card" onClick={() => onEdit(post)}>
+                  {post.cover_image && (
+                    <img
+                      src={`localfile://${post.cover_image}`}
+                      style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6, marginBottom: 10, display: 'block' }}
+                    />
+                  )}
                   <div className="post-card-title">{post.title}</div>
                   <div className="post-card-meta">
                     {post.city && `📍 ${post.city} · `}
@@ -57,7 +63,7 @@ export default function Library({ onEdit, onPublish }: {
                       style={{ marginLeft: 'auto', fontSize: 12, padding: '2px 10px' }}
                       onClick={e => { e.stopPropagation(); onPublish(post) }}
                     >
-                      发布
+                      Publish
                     </button>
                   </div>
                 </div>
