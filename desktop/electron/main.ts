@@ -77,7 +77,7 @@ ipcMain.handle('settings:load', () => loadSettings())
 ipcMain.handle('settings:save', (_e, s: Record<string, string>) => saveSettings(s))
 
 import { hasCookies, loginWithQR, probeCdp } from './publishers/xiaohongshu'
-import { execSync, spawnSync } from 'child_process'
+import { spawnSync, spawn } from 'child_process'
 import os from 'os'
 
 ipcMain.handle('xiaohongshu:login', async () => {
@@ -93,19 +93,29 @@ ipcMain.handle('xiaohongshu:cdp-status', async (_e, port: number) => {
   return { connected: await probeCdp(port) }
 })
 
-ipcMain.handle('xiaohongshu:launch-chrome', (_e, profileDir: string, port: number) => {
+ipcMain.handle('xiaohongshu:launch-chrome', async (_e, profileDir: string, port: number) => {
   const resolved = profileDir.replace(/^~/, os.homedir())
-  // Kill any running Chrome first so the profile isn't locked
+  const chromeBin = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+
+  // Kill Chrome and wait until fully exited (profile dir is locked while running)
   spawnSync('pkill', ['-x', 'Google Chrome'], { encoding: 'utf-8' })
-  // Give it a moment to shut down
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1500)
-  execSync(
-    `open -a "Google Chrome" --args` +
-    ` --user-data-dir="${resolved}"` +
-    ` --remote-debugging-port=${port}` +
-    ` --no-first-run` +
-    ` --no-default-browser-check`,
-  )
+  const killDeadline = Date.now() + 5000
+  while (Date.now() < killDeadline) {
+    const alive = spawnSync('pgrep', ['-x', 'Google Chrome'], { encoding: 'utf-8' })
+    if (alive.status !== 0) break
+    await new Promise(r => setTimeout(r, 300))
+  }
+
+  // Launch Chrome binary directly — bypasses macOS single-instance enforcement,
+  // guarantees --user-data-dir and --remote-debugging-port are honoured
+  spawn(chromeBin, [
+    `--user-data-dir=${resolved}`,
+    `--remote-debugging-port=${port}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    'https://creator.xiaohongshu.com/publish/publish?source=official',
+  ], { detached: true, stdio: 'ignore' }).unref()
+
   return { ok: true }
 })
 
