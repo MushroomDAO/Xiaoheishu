@@ -1,5 +1,5 @@
 import { chromium, type Cookie } from 'playwright'
-import { execSync } from 'child_process'
+import { execSync, spawnSync } from 'child_process'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
@@ -47,25 +47,73 @@ async function waitForCdp(port: number, timeoutMs = 30000): Promise<void> {
   throw new Error(`Chrome CDP port ${port} not ready after ${timeoutMs / 1000}s`)
 }
 
+function isChromeRunning(): boolean {
+  const result = spawnSync('pgrep', ['-x', 'Google Chrome'], { encoding: 'utf-8' })
+  return result.status === 0 && result.stdout.trim().length > 0
+}
+
 // ── Publishing core ──────────────────────────────────────────────────────────
 
 async function doPublish(page: import('playwright').Page, post: Record<string, unknown>): Promise<string> {
-  await page.goto('https://creator.xiaohongshu.com/publish/publish', { waitUntil: 'networkidle' })
+  await page.goto('https://creator.xiaohongshu.com/publish/publish?source=official', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2000)
 
-  const needLogin = await page.locator('.login-container').isVisible({ timeout: 3000 }).catch(() => false)
-  if (needLogin) throw new Error('NOT_LOGGED_IN')
+  // Check for login redirect
+  if (page.url().includes('/login')) throw new Error('NOT_LOGGED_IN')
 
-  if (post.cover_image) {
-    await page.locator('.upload-input').first().setInputFiles(String(post.cover_image))
-    await page.waitForTimeout(2000)
-  }
-
-  await page.locator('div.d-input input').first().fill(String(post.title))
+  // Wait for the upload-content area, then click the "上传图文" tab
+  await page.locator('div.upload-content').waitFor({ timeout: 15000 })
   await page.waitForTimeout(500)
 
-  await page.locator('div.ql-editor, [role="textbox"]').first().fill(String(post.content))
+  // Click "上传图文" tab (text-based, same as MCP's mustClickPublishTab)
+  const tabs = page.locator('div.creator-tab')
+  const count = await tabs.count()
+  for (let i = 0; i < count; i++) {
+    const tab = tabs.nth(i)
+    const text = (await tab.textContent() || '').trim()
+    if (text === '上传图文') {
+      await tab.click()
+      break
+    }
+  }
   await page.waitForTimeout(1000)
 
+  // Collect images: use post.images array first, fall back to cover_image
+  let imagePaths: string[] = []
+  try {
+    const arr = JSON.parse(String(post.images || '[]')) as string[]
+    if (arr.length > 0) imagePaths = arr
+  } catch { /* ignore */ }
+  if (imagePaths.length === 0 && post.cover_image) {
+    imagePaths = [String(post.cover_image)]
+  }
+
+  if (imagePaths.length === 0) {
+    throw new Error('小红书 requires at least one image — please add images in the editor')
+  }
+
+  // Upload images one by one (MCP pattern: first uses .upload-input, rest use input[type="file"])
+  for (let i = 0; i < imagePaths.length; i++) {
+    const selector = i === 0 ? '.upload-input' : 'input[type="file"]'
+    await page.locator(selector).first().setInputFiles(imagePaths[i])
+    // Wait for upload preview to appear
+    await page.waitForFunction(
+      (n: number) => document.querySelectorAll('.img-preview-area .pr').length >= n,
+      i + 1,
+      { timeout: 60000 }
+    )
+    await page.waitForTimeout(500)
+  }
+
+  // Fill title
+  await page.locator('div.d-input input').first().fill(String(post.title || ''))
+  await page.waitForTimeout(500)
+
+  // Fill content
+  await page.locator('div.ql-editor, [role="textbox"]').first().fill(String(post.content || ''))
+  await page.waitForTimeout(1000)
+
+  // Click publish button
   await page.locator('.publish-page-publish-btn button.bg-red').first().click()
   await page.waitForTimeout(3000)
 
@@ -81,10 +129,16 @@ async function publishViaCdp(
 ): Promise<{ url: string }> {
   const resolvedProfile = profileDir.replace(/^~/, os.homedir())
 
-  // Launch Chrome with the specified profile and debug port if not already running
   if (!(await probeCdp(port))) {
+    // If Chrome is already running without the debug port, profile will be locked
+    if (isChromeRunning()) {
+      throw new Error(
+        'Chrome is already running without a debug port.\n' +
+        'Please close Chrome first, then try publishing again — the app will relaunch it with the correct profile and debug port.'
+      )
+    }
     execSync(
-      `open -na "Google Chrome" --args` +
+      `open -a "Google Chrome" --args` +
       ` --user-data-dir="${resolvedProfile}"` +
       ` --remote-debugging-port=${port}` +
       ` --no-first-run` +
@@ -103,7 +157,7 @@ async function publishViaCdp(
     return { url }
   } catch (err) {
     if ((err as Error).message === 'NOT_LOGGED_IN') {
-      throw new Error('小红书 not logged in in this Chrome profile. Please log in manually first.')
+      throw new Error('小红书 not logged in in this Chrome profile. Please open creator.xiaohongshu.com and log in first.')
     }
     throw err
   } finally {
@@ -148,20 +202,17 @@ export async function loginWithQR(): Promise<void> {
   const context = await browser.newContext()
   const page = await context.newPage()
   try {
-    // Go directly to creator platform — it will redirect to its own login page if not authed.
-    // After QR scan we land back on publish/publish, so creator-domain session cookies are set.
+    // Go directly to creator platform — it redirects to its own QR login page if not authed.
+    // After QR scan it redirects back to publish/publish, so creator-domain session is set.
     await page.goto('https://creator.xiaohongshu.com/publish/publish', { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(2000)
 
-    // If already on publish page (not redirected to login), we're already logged in
-    const onLoginPage = page.url().includes('/login')
-    if (onLoginPage) {
+    if (page.url().includes('/login')) {
       // Wait until redirected back to publish page after successful QR scan (up to 4 min)
       await page.waitForURL(/creator\.xiaohongshu\.com\/publish\/publish/, { timeout: 240000 })
       await page.waitForTimeout(3000)
     }
 
-    // Save cookies — creator.xiaohongshu.com session is now included
     saveCookies(await context.cookies())
   } finally {
     await page.close()
@@ -183,7 +234,12 @@ export async function publish(post: Record<string, unknown>): Promise<{ url: str
       try {
         return await publishViaCdp(post, xiaohongshu_profile_dir, port)
       } catch (err) {
-        console.warn(`[xiaohongshu] CDP publish failed (${(err as Error).message}), falling back to cookies`)
+        const msg = (err as Error).message
+        // Don't silently fall back if the error is actionable (Chrome running, not logged in)
+        if (msg.includes('Chrome is already running') || msg.includes('not logged in')) {
+          throw err
+        }
+        console.warn(`[xiaohongshu] CDP publish failed (${msg}), falling back to cookies`)
       }
     }
   }
