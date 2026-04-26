@@ -78,8 +78,7 @@ async function doPublish(page: import('playwright').Page, post: Record<string, u
     const selector = i === 0 ? '.upload-input' : 'input[type="file"]'
     await page.locator(selector).first().setInputFiles(imagePaths[i])
     await page.waitForFunction(
-      (n: number) => document.querySelectorAll('.img-preview-area .pr').length >= n,
-      i + 1,
+      `document.querySelectorAll('.img-preview-area .pr').length >= ${i + 1}`,
       { timeout: 60000 }
     )
     await page.waitForTimeout(500)
