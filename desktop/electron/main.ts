@@ -104,35 +104,31 @@ ipcMain.handle('xiaohongshu:chrome-running', () => {
 
 ipcMain.handle('xiaohongshu:launch-chrome', async (_e, profileDir: string, port: number) => {
   const resolved = profileDir.replace(/^~/, os.homedir())
-  const userDataDir = path.dirname(resolved)    // .../Google/Chrome
-  const profileFolder = path.basename(resolved) // Default, Profile 4
 
-  // Step 1: graceful quit + force kill all Chrome processes
+  // Graceful quit first, then wait for clean exit
   spawnSync('osascript', ['-e', 'tell application "Google Chrome" to quit'], { encoding: 'utf-8' })
-
-  // Wait up to 10s for ALL Chrome processes to fully exit
-  const killDeadline = Date.now() + 10000
+  const killDeadline = Date.now() + 8000
   while (Date.now() < killDeadline) {
-    const alive = spawnSync('pgrep', ['-f', 'Google Chrome'], { encoding: 'utf-8' })
-    if (alive.status !== 0) break
-    await new Promise(r => setTimeout(r, 500))
+    if (spawnSync('pgrep', ['-f', 'Google Chrome'], { encoding: 'utf-8' }).status !== 0) break
+    await new Promise(r => setTimeout(r, 400))
   }
   spawnSync('pkill', ['-9', '-f', 'Google Chrome'], { encoding: 'utf-8' })
-  await new Promise(r => setTimeout(r, 2000)) // extra wait after force kill
+  await new Promise(r => setTimeout(r, 1500))
 
-  // Step 2: verify Chrome is truly dead
-  const stillAlive = spawnSync('pgrep', ['-f', 'Google Chrome'], { encoding: 'utf-8' })
-  if (stillAlive.status === 0) {
-    throw new Error('Chrome processes still running after kill attempt. Please quit Chrome manually (Cmd+Q) and try again.')
+  // Remove SingletonLock/SingletonSocket — left behind by SIGKILL, causes new Chrome to
+  // start in "client mode" (connecting to dead instance) and skip binding the debug port
+  const chromeRoot = path.dirname(resolved)
+  for (const lockFile of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
+    const p = path.join(chromeRoot, lockFile)
+    try { fs.unlinkSync(p) } catch { /* not present, ignore */ }
   }
 
-  // Step 3: use execSync with shell — identical to running the command in Terminal
-  const userDataDirEsc = userDataDir.replace(/"/g, '\\"')
-  const profileFolderEsc = profileFolder.replace(/"/g, '\\"')
+  // Follow SKILL.md exactly: pass profile dir directly as --user-data-dir
+  // (not the Chrome root + --profile-directory). This is how the xhs-mcp CDP skill works.
+  const profileDirEsc = resolved.replace(/"/g, '\\"')
   execSync(
     `open -na "Google Chrome" --args` +
-    ` --user-data-dir="${userDataDirEsc}"` +
-    ` --profile-directory="${profileFolderEsc}"` +
+    ` --user-data-dir="${profileDirEsc}"` +
     ` --remote-debugging-port=${port}` +
     ` --no-first-run` +
     ` --no-default-browser-check` +
