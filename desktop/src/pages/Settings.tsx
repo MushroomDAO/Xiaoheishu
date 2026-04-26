@@ -71,13 +71,14 @@ export default function Settings() {
     setCdpState('checking')
     try {
       await (window as any).xhs.xiaohongshuLaunchChrome(form.xiaohongshu_profile_dir, port)
-      // Poll for CDP to become ready (up to 15s)
-      const deadline = Date.now() + 15000
+      // Poll for CDP to become ready (up to 30s — Chrome can be slow to start debug server)
+      const deadline = Date.now() + 30000
       while (Date.now() < deadline) {
-        await new Promise(r => setTimeout(r, 1000))
+        await new Promise(r => setTimeout(r, 1500))
         const r = await (window as any).xhs.xiaohongshuCdpStatus(port)
         if (r.connected) { setCdpState('connected'); return }
       }
+      // Timed out — Chrome may still be starting, user can click Check Connection manually
       setCdpState('disconnected')
     } catch (e: any) {
       setCdpState('disconnected')
@@ -265,19 +266,22 @@ export default function Settings() {
               <div style={{
                 background: 'var(--surface2)', borderRadius: 8, padding: '12px 14px', fontSize: 12, lineHeight: 1.7,
               }}>
-                <p style={{ color: 'var(--text)', marginBottom: 6, fontWeight: 500 }}>Step 1 — Launch Chrome with debug port</p>
-                <p style={{ color: 'var(--muted)', marginBottom: 10 }}>
-                  This will close your existing Chrome and reopen it with the selected profile + debug port {form.xiaohongshu_cdp_port || '9222'}.
-                  Your 小红书 login session in that profile will be reused for publishing.
+                <p style={{ color: 'var(--text)', marginBottom: 6, fontWeight: 500 }}>Launch Chrome with debug port</p>
+                <p style={{ color: 'var(--muted)', marginBottom: 4 }}>
+                  CDP debug port must be enabled <strong style={{ color: 'var(--text)' }}>at Chrome startup</strong> — you cannot attach to an already-running Chrome.
+                  This button closes Chrome and relaunches it with the selected profile + port {form.xiaohongshu_cdp_port || '9222'}.
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <p style={{ color: 'var(--muted)', marginBottom: 10 }}>
+                  Chrome keeps the debug port open until you close it. You only need to do this once per session.
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <button
                     className="btn"
                     style={{ fontSize: 12, padding: '4px 14px' }}
                     disabled={launching || !form.xiaohongshu_profile_dir}
                     onClick={launchChrome}
                   >
-                    {launching ? 'Launching…' : 'Launch Chrome with Debug Port'}
+                    {launching ? 'Launching… (checking port)' : 'Launch Chrome with Debug Port'}
                   </button>
                   <button
                     className="btn"
@@ -288,10 +292,10 @@ export default function Settings() {
                     {cdpState === 'checking' ? 'Checking…' : 'Check Connection'}
                   </button>
                   {cdpState === 'connected' && (
-                    <span style={{ fontSize: 12, color: '#4ade80' }}>● Connected</span>
+                    <span style={{ fontSize: 12, color: '#4ade80' }}>● Connected — ready to publish</span>
                   )}
                   {cdpState === 'disconnected' && (
-                    <span style={{ fontSize: 12, color: '#f87171' }}>● Not connected — launch Chrome first</span>
+                    <span style={{ fontSize: 12, color: '#f87171' }}>● Not connected — click Check Connection after Chrome opens</span>
                   )}
                 </div>
                 <p style={{ color: '#f87171', marginTop: 8, marginBottom: 0 }}>
