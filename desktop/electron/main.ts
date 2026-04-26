@@ -77,7 +77,7 @@ ipcMain.handle('settings:load', () => loadSettings())
 ipcMain.handle('settings:save', (_e, s: Record<string, string>) => saveSettings(s))
 
 import { hasCookies, loginWithQR, probeCdp } from './publishers/xiaohongshu'
-import { spawnSync, spawn } from 'child_process'
+import { spawnSync, execSync } from 'child_process'
 import os from 'os'
 
 ipcMain.handle('xiaohongshu:login', async () => {
@@ -126,17 +126,19 @@ ipcMain.handle('xiaohongshu:launch-chrome', async (_e, profileDir: string, port:
     throw new Error('Chrome processes still running after kill attempt. Please quit Chrome manually (Cmd+Q) and try again.')
   }
 
-  // Step 3: open -na works reliably when Chrome is completely dead
-  spawnSync('open', [
-    '-na', 'Google Chrome',
-    '--args',
-    `--user-data-dir=${userDataDir}`,
-    `--profile-directory=${profileFolder}`,
-    `--remote-debugging-port=${port}`,
-    '--no-first-run',
-    '--no-default-browser-check',
-    'https://creator.xiaohongshu.com/publish/publish?source=official',
-  ], { encoding: 'utf-8' })
+  // Step 3: use execSync with shell — identical to running the command in Terminal
+  const userDataDirEsc = userDataDir.replace(/"/g, '\\"')
+  const profileFolderEsc = profileFolder.replace(/"/g, '\\"')
+  execSync(
+    `open -na "Google Chrome" --args` +
+    ` --user-data-dir="${userDataDirEsc}"` +
+    ` --profile-directory="${profileFolderEsc}"` +
+    ` --remote-debugging-port=${port}` +
+    ` --no-first-run` +
+    ` --no-default-browser-check` +
+    ` "https://creator.xiaohongshu.com/publish/publish?source=official"`,
+    { shell: true }
+  )
 
   return { ok: true }
 })
