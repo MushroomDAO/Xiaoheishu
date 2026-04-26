@@ -31,6 +31,7 @@ export default function Settings() {
   const [chromeProfiles, setChromeProfiles] = useState<ChromeProfile[]>([])
   const [cdpState, setCdpState] = useState<CdpState>('unknown')
   const [launching, setLaunching] = useState(false)
+  const [cdpDiag, setCdpDiag] = useState('')
 
   useEffect(() => {
     (window as any).xhs.settingsLoad().then((s: AppSettings) => setForm(s))
@@ -53,9 +54,17 @@ export default function Settings() {
   async function checkCdp() {
     const port = parseInt(form.xiaohongshu_cdp_port || '9222', 10)
     setCdpState('checking')
+    setCdpDiag('')
     try {
-      const r = await (window as any).xhs.xiaohongshuCdpStatus(port)
+      const r = await (window as any).xhs.xiaohongshuCdpStatus(port) as { connected: boolean; hasDebugFlag: boolean; debugProcessLine: string }
       setCdpState(r.connected ? 'connected' : 'disconnected')
+      if (!r.connected) {
+        setCdpDiag(r.hasDebugFlag
+          ? `Chrome has debug flag but port not responding: ${r.debugProcessLine}`
+          : 'Chrome has NO --remote-debugging-port flag — it was launched without debug port')
+      } else {
+        setCdpDiag('')
+      }
     } catch {
       setCdpState('disconnected')
     }
@@ -306,8 +315,13 @@ export default function Settings() {
                     <span style={{ fontSize: 12, color: '#4ade80' }}>● Connected — ready to publish</span>
                   )}
                   {cdpState === 'disconnected' && (
-                    <span style={{ fontSize: 12, color: '#f87171' }}>● Not connected — click Check Connection after Chrome opens</span>
+                    <span style={{ fontSize: 12, color: '#f87171' }}>● Not connected</span>
                   )}
+                {cdpDiag && (
+                  <p style={{ fontSize: 11, color: '#f87171', marginTop: 6, marginBottom: 0, fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                    ⚠ {cdpDiag}
+                  </p>
+                )}
                 </div>
                 <div style={{ marginTop: 8 }}>
                   <button className="btn" style={{ fontSize: 11, padding: '3px 10px', opacity: 0.7 }} onClick={copyLaunchCmd}>

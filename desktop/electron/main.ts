@@ -90,7 +90,11 @@ ipcMain.handle('xiaohongshu:login-status', () => {
 })
 
 ipcMain.handle('xiaohongshu:cdp-status', async (_e, port: number) => {
-  return { connected: await probeCdp(port) }
+  const connected = await probeCdp(port)
+  // Also check if Chrome process has the debug flag (diagnostic)
+  const psResult = spawnSync('sh', ['-c', 'ps aux | grep "remote-debugging" | grep -v grep'], { encoding: 'utf-8' })
+  const hasDebugFlag = psResult.stdout.trim().length > 0
+  return { connected, hasDebugFlag, debugProcessLine: psResult.stdout.trim().slice(0, 120) }
 })
 
 ipcMain.handle('xiaohongshu:launch-chrome', async (_e, profileDir: string, port: number) => {
