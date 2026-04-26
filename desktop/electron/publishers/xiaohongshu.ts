@@ -182,10 +182,10 @@ export async function loginWithQR(): Promise<void> {
 // ── Public publish entry point ────────────────────────────────────────────────
 
 export async function publish(post: Record<string, unknown>): Promise<{ url: string }> {
-  const { xiaohongshu_advanced_mode, xiaohongshu_cdp_port, xiaohongshu_profile_dir } = loadSettings()
+  const { xiaohongshu_advanced_mode, xiaohongshu_cdp_port } = loadSettings()
   const port = parseInt(xiaohongshu_cdp_port || '9222', 10)
 
-  if (xiaohongshu_advanced_mode === 'true' && xiaohongshu_profile_dir) {
+  if (xiaohongshu_advanced_mode === 'true') {
     try {
       return await publishViaCdp(post, port)
     } catch (err) {

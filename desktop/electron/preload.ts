@@ -38,12 +38,11 @@ contextBridge.exposeInMainWorld('xhs', {
   settingsLoad: () => ipcRenderer.invoke('settings:load'),
   settingsSave: (s: Record<string, string>) => ipcRenderer.invoke('settings:save', s),
   testXhsConnection: (username: string, password: string) => ipcRenderer.invoke('settings:test-xhs', username, password),
-  listChromeProfiles: () => ipcRenderer.invoke('xiaohongshu:list-profiles'),
   xiaohongshuLogin: () => ipcRenderer.invoke('xiaohongshu:login'),
   xiaohongshuLoginStatus: () => ipcRenderer.invoke('xiaohongshu:login-status'),
   xiaohongshuCdpStatus: (port: number) => ipcRenderer.invoke('xiaohongshu:cdp-status', port),
   xiaohongshuAgentStatus: () => ipcRenderer.invoke('xiaohongshu:agent-status'),
-  xiaohongshuInstallAgent: (profileDir: string, port: number) => ipcRenderer.invoke('xiaohongshu:install-agent', profileDir, port),
+  xiaohongshuInstallAgent: (port: number) => ipcRenderer.invoke('xiaohongshu:install-agent', port),
   xiaohongshuStartAgent: () => ipcRenderer.invoke('xiaohongshu:start-agent'),
   xiaohongshuUninstallAgent: () => ipcRenderer.invoke('xiaohongshu:uninstall-agent'),
 })

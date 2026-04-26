@@ -8,12 +8,10 @@ interface AppSettings {
   wechat_mpid: string
   xiaohongshu_advanced_mode: string
   xiaohongshu_cdp_port: string
-  xiaohongshu_profile_dir: string
 }
 
 type TestState = 'idle' | 'testing' | 'ok' | 'fail'
 type CdpState = 'unknown' | 'checking' | 'connected' | 'disconnected'
-interface ChromeProfile { folder: string; fullPath: string; name: string; email: string }
 
 export default function Settings() {
   const [form, setForm] = useState<AppSettings>({
@@ -21,14 +19,12 @@ export default function Settings() {
     wechat_app_id: '', wechat_app_secret: '', wechat_mpid: '',
     xiaohongshu_advanced_mode: '',
     xiaohongshu_cdp_port: '9222',
-    xiaohongshu_profile_dir: '',
   })
   const [saved, setSaved] = useState(false)
   const [testState, setTestState] = useState<TestState>('idle')
   const [testMsg, setTestMsg] = useState('')
   const [xhsLoggedIn, setXhsLoggedIn] = useState(false)
   const [xhsLogging, setXhsLogging] = useState(false)
-  const [chromeProfiles, setChromeProfiles] = useState<ChromeProfile[]>([])
   const [cdpState, setCdpState] = useState<CdpState>('unknown')
   const [launching, setLaunching] = useState(false)
   const [cdpDiag, setCdpDiag] = useState('')
@@ -37,7 +33,6 @@ export default function Settings() {
   useEffect(() => {
     (window as any).xhs.settingsLoad().then((s: AppSettings) => setForm(s))
     ;(window as any).xhs.xiaohongshuLoginStatus().then((r: { loggedIn: boolean }) => setXhsLoggedIn(r.loggedIn))
-    ;(window as any).xhs.listChromeProfiles().then((p: ChromeProfile[]) => setChromeProfiles(p))
     ;(window as any).xhs.xiaohongshuAgentStatus().then((r: { installed: boolean }) => setAgentInstalled(r.installed))
   }, [])
 
@@ -67,12 +62,11 @@ export default function Settings() {
   }
 
   async function installAndStartAgent() {
-    if (!form.xiaohongshu_profile_dir) { alert('Select a Chrome profile first.'); return }
     const port = parseInt(form.xiaohongshu_cdp_port || '9222', 10)
     setLaunching(true)
     setCdpState('checking')
     try {
-      await (window as any).xhs.xiaohongshuInstallAgent(form.xiaohongshu_profile_dir, port)
+      await (window as any).xhs.xiaohongshuInstallAgent(port)
       await (window as any).xhs.xiaohongshuStartAgent()
       // Poll up to 30s
       const deadline = Date.now() + 30000
@@ -221,44 +215,20 @@ export default function Settings() {
             />
             <div>
               <label htmlFor="xhs-advanced" style={{ fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                Advanced mode — use your Chrome session (recommended)
+                Advanced mode — dedicated Chrome with CDP
               </label>
               <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, lineHeight: 1.6 }}>
-                Connects to your real Chrome via CDP debug port. Your existing 小红书 login in Chrome is reused directly —
-                no QR code needed. <strong style={{ color: 'var(--text)' }}>Chrome must be launched with the debug port first</strong> (use the button below).
+                Runs a separate Chrome instance in <code>~/.xiaoheishu/chrome-profile</code> with remote debugging.
+                Your normal Chrome is untouched. <strong style={{ color: 'var(--text)' }}>First time:</strong> click Install &amp; Start,
+                then scan the QR code in the Chrome window that opens. Login persists for future runs.
+                <br/><br/>
+                <em style={{ color: 'var(--muted)' }}>Why a separate Chrome? Chrome 136+ silently disables CDP on the default profile.</em>
               </p>
             </div>
           </div>
 
           {form.xiaohongshu_advanced_mode === 'true' && (
             <>
-              <Field label="Chrome Profile Directory">
-                {chromeProfiles.length > 0 ? (
-                  <>
-                    <select
-                      className="editor-input"
-                      value={form.xiaohongshu_profile_dir}
-                      onChange={e => update('xiaohongshu_profile_dir', e.target.value)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <option value="">— select a profile —</option>
-                      {chromeProfiles.map(p => (
-                        <option key={p.folder} value={p.fullPath}>
-                          {p.folder} — {p.name}{p.email ? ` (${p.email})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <input className="editor-input" value={form.xiaohongshu_profile_dir}
-                      onChange={e => update('xiaohongshu_profile_dir', e.target.value)}
-                      placeholder="~/Library/Application Support/Google/Chrome/Profile 4"
-                      style={{ marginTop: 6 }} />
-                  </>
-                ) : (
-                  <input className="editor-input" value={form.xiaohongshu_profile_dir}
-                    onChange={e => update('xiaohongshu_profile_dir', e.target.value)}
-                    placeholder="~/Library/Application Support/Google/Chrome/Profile 4" />
-                )}
-              </Field>
               <Field label="CDP Port">
                 <input className="editor-input" value={form.xiaohongshu_cdp_port}
                   onChange={e => update('xiaohongshu_cdp_port', e.target.value)}
@@ -268,15 +238,15 @@ export default function Settings() {
               {/* LaunchAgent — same approach as xhs-mcp-cdp SKILL.md */}
               <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '12px 14px', fontSize: 12, lineHeight: 1.7 }}>
                 <p style={{ color: 'var(--text)', marginBottom: 4, fontWeight: 500 }}>
-                  Background service (LaunchAgent) — same as xhs-mcp-cdp
+                  Background service (LaunchAgent)
                 </p>
                 <p style={{ color: 'var(--muted)', marginBottom: 10 }}>
-                  Installs a macOS LaunchAgent that starts Chrome with debug port on login, completely independent of this app.
+                  Installs a macOS LaunchAgent that starts the dedicated Chrome on login.
                   Click <strong style={{ color: 'var(--text)' }}>Install &amp; Start</strong> once — Chrome will stay ready automatically.
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <button className="btn" style={{ fontSize: 12, padding: '4px 14px' }}
-                    disabled={launching || !form.xiaohongshu_profile_dir}
+                    disabled={launching}
                     onClick={installAndStartAgent}>
                     {launching ? 'Starting…' : agentInstalled ? 'Reinstall & Start' : 'Install & Start'}
                   </button>
@@ -293,7 +263,6 @@ export default function Settings() {
                 </p>
               </div>
               <StatusRow label="Agent" status={agentInstalled ? 'configured' : 'not_set'} />
-              <StatusRow label="Profile" status={form.xiaohongshu_profile_dir ? 'configured' : 'not_set'} />
             </>
           )}
         </Section>

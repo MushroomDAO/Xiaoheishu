@@ -12,11 +12,12 @@ export interface AppSettings {
   wechat_app_secret: string
   wechat_mpid: string
 
-  // 小红书 default: QR login → cookies.json
-  // Advanced mode: launch user's Chrome with specific profile + CDP port
+  // 小红书 default mode: QR login → cookies.json (Playwright Chromium)
+  // Advanced mode: dedicated Chrome at ~/.xiaoheishu/chrome-profile + CDP port
+  // (Chrome 136+ silently disables CDP on the default profile, so we use a
+  //  separate user-data-dir managed by the LaunchAgent — no profile picker.)
   xiaohongshu_advanced_mode: string   // 'true' | ''
   xiaohongshu_cdp_port: string        // default '9222'
-  xiaohongshu_profile_dir: string     // full path to Chrome profile dir, e.g. ~/...Chrome/Profile 4
 }
 
 const DEFAULTS: AppSettings = {
@@ -27,7 +28,6 @@ const DEFAULTS: AppSettings = {
   wechat_mpid: '',
   xiaohongshu_advanced_mode: '',
   xiaohongshu_cdp_port: '9222',
-  xiaohongshu_profile_dir: '',
 }
 
 function getSettingsPath() {
