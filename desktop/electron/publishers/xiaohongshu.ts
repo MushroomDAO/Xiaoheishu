@@ -148,21 +148,20 @@ export async function loginWithQR(): Promise<void> {
   const context = await browser.newContext()
   const page = await context.newPage()
   try {
-    await page.goto('https://www.xiaohongshu.com/explore', { waitUntil: 'domcontentloaded' })
+    // Go directly to creator platform — it will redirect to its own login page if not authed.
+    // After QR scan we land back on publish/publish, so creator-domain session cookies are set.
+    await page.goto('https://creator.xiaohongshu.com/publish/publish', { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(2000)
 
-    const loggedIn = await page.locator('.main-container .user .link-wrapper .channel').first()
-      .isVisible({ timeout: 3000 }).catch(() => false)
-    if (!loggedIn) {
-      await page.locator('.main-container .user .link-wrapper .channel').first()
-        .waitFor({ timeout: 240000 })
+    // If already on publish page (not redirected to login), we're already logged in
+    const onLoginPage = page.url().includes('/login')
+    if (onLoginPage) {
+      // Wait until redirected back to publish page after successful QR scan (up to 4 min)
+      await page.waitForURL(/creator\.xiaohongshu\.com\/publish\/publish/, { timeout: 240000 })
+      await page.waitForTimeout(3000)
     }
 
-    // Visit creator domain so its auth cookies are also captured
-    await page.goto('https://creator.xiaohongshu.com/publish/publish', { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(3000)
-
-    // Save cookies from ALL domains (xiaohongshu.com + creator.xiaohongshu.com)
+    // Save cookies — creator.xiaohongshu.com session is now included
     saveCookies(await context.cookies())
   } finally {
     await page.close()
