@@ -12,6 +12,7 @@ interface AppSettings {
 
 type TestState = 'idle' | 'testing' | 'ok' | 'fail'
 type CdpState = 'unknown' | 'checking' | 'connected' | 'disconnected'
+interface ChromeProfile { folder: string; fullPath: string; name: string; email: string }
 
 export default function Settings() {
   const [form, setForm] = useState<AppSettings>({
@@ -29,12 +30,31 @@ export default function Settings() {
   const [launching, setLaunching] = useState(false)
   const [cdpDiag, setCdpDiag] = useState('')
   const [agentInstalled, setAgentInstalled] = useState(false)
+  const [chromeProfiles, setChromeProfiles] = useState<ChromeProfile[]>([])
+  const [sourceProfile, setSourceProfile] = useState('')
+  const [profileInitialized, setProfileInitialized] = useState(false)
+  const [initializing, setInitializing] = useState(false)
 
   useEffect(() => {
     (window as any).xhs.settingsLoad().then((s: AppSettings) => setForm(s))
     ;(window as any).xhs.xiaohongshuLoginStatus().then((r: { loggedIn: boolean }) => setXhsLoggedIn(r.loggedIn))
     ;(window as any).xhs.xiaohongshuAgentStatus().then((r: { installed: boolean }) => setAgentInstalled(r.installed))
+    ;(window as any).xhs.listChromeProfiles().then((p: ChromeProfile[]) => setChromeProfiles(p))
+    ;(window as any).xhs.xiaohongshuProfileInitialized().then((b: boolean) => setProfileInitialized(b))
   }, [])
+
+  async function initializeProfile() {
+    if (!sourceProfile) { alert('Pick a source Chrome profile first.'); return }
+    setInitializing(true)
+    try {
+      await (window as any).xhs.xiaohongshuInitializeProfile(sourceProfile)
+      setProfileInitialized(true)
+    } catch (e: any) {
+      alert('Initialize failed: ' + (e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
+    } finally {
+      setInitializing(false)
+    }
+  }
 
   function update(key: keyof AppSettings, val: string) {
     setForm(f => ({ ...f, [key]: val }))
@@ -229,24 +249,71 @@ export default function Settings() {
 
           {form.xiaohongshu_advanced_mode === 'true' && (
             <>
+              {/* Step 1 — Initialize dedicated profile by cloning an existing Chrome profile */}
+              <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '12px 14px', fontSize: 12, lineHeight: 1.7 }}>
+                <p style={{ color: 'var(--text)', marginBottom: 4, fontWeight: 500 }}>
+                  Step 1 — Clone a Chrome profile (one-time)
+                </p>
+                <p style={{ color: 'var(--muted)', marginBottom: 10 }}>
+                  Pick one of your Chrome profiles to clone into <code>~/.xiaoheishu/chrome-profile</code>.
+                  Cookies, history, login state are copied (caches excluded). The dedicated Chrome looks
+                  like a real user instead of a fresh empty browser.
+                  <br/>
+                  <strong style={{ color: 'var(--text)' }}>Quit Google Chrome before clicking</strong> — open Chrome holds locks on the SQLite files.
+                </p>
+                <Field label="Source profile">
+                  {chromeProfiles.length > 0 ? (
+                    <select
+                      className="editor-input"
+                      value={sourceProfile}
+                      onChange={e => setSourceProfile(e.target.value)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <option value="">— select a profile —</option>
+                      {chromeProfiles.map(p => (
+                        <option key={p.folder} value={p.fullPath}>
+                          {p.folder} — {p.name}{p.email ? ` (${p.email})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input className="editor-input" value={sourceProfile}
+                      onChange={e => setSourceProfile(e.target.value)}
+                      placeholder="~/Library/Application Support/Google/Chrome/Profile 4" />
+                  )}
+                </Field>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                  <button className="btn" style={{ fontSize: 12, padding: '4px 14px' }}
+                    disabled={initializing || !sourceProfile}
+                    onClick={initializeProfile}>
+                    {initializing ? 'Cloning… (may take a minute)' : profileInitialized ? 'Re-clone' : 'Initialize Profile'}
+                  </button>
+                  <span style={{ fontSize: 12, color: profileInitialized ? '#4ade80' : 'var(--muted)' }}>
+                    {profileInitialized ? '● Initialized' : '○ Not initialized'}
+                  </span>
+                </div>
+              </div>
+
               <Field label="CDP Port">
                 <input className="editor-input" value={form.xiaohongshu_cdp_port}
                   onChange={e => update('xiaohongshu_cdp_port', e.target.value)}
                   placeholder="9222" style={{ width: 100 }} />
               </Field>
 
-              {/* LaunchAgent — same approach as xhs-mcp-cdp SKILL.md */}
+              {/* Step 2 — LaunchAgent */}
               <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '12px 14px', fontSize: 12, lineHeight: 1.7 }}>
                 <p style={{ color: 'var(--text)', marginBottom: 4, fontWeight: 500 }}>
-                  Background service (LaunchAgent)
+                  Step 2 — Background service (LaunchAgent)
                 </p>
                 <p style={{ color: 'var(--muted)', marginBottom: 10 }}>
                   Installs a macOS LaunchAgent that starts the dedicated Chrome on login.
                   Click <strong style={{ color: 'var(--text)' }}>Install &amp; Start</strong> once — Chrome will stay ready automatically.
+                  Then log into 小红书 in that Chrome window (your Google login is already there).
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <button className="btn" style={{ fontSize: 12, padding: '4px 14px' }}
-                    disabled={launching}
+                    disabled={launching || !profileInitialized}
+                    title={!profileInitialized ? 'Initialize a profile first (Step 1)' : ''}
                     onClick={installAndStartAgent}>
                     {launching ? 'Starting…' : agentInstalled ? 'Reinstall & Start' : 'Install & Start'}
                   </button>

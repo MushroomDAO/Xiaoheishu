@@ -77,7 +77,7 @@ ipcMain.handle('settings:load', () => loadSettings())
 ipcMain.handle('settings:save', (_e, s: Record<string, string>) => saveSettings(s))
 
 import { hasCookies, loginWithQR, probeCdp } from './publishers/xiaohongshu'
-import { spawnSync, execSync } from 'child_process'
+import { spawnSync, spawn, execSync } from 'child_process'
 import os from 'os'
 
 // ── LaunchAgent helpers (Chrome CDP background service) ──────────────────────
@@ -221,6 +221,98 @@ ipcMain.handle('xiaohongshu:uninstall-agent', () => {
   spawnSync('launchctl', ['unload', AGENT_PLIST], { encoding: 'utf-8' })
   try { fs.unlinkSync(AGENT_PLIST) } catch { /* ignore */ }
   return { ok: true }
+})
+
+// ── Profile cloning (advanced mode initialization) ──────────────────────────
+// Lists user's existing Chrome profiles so they can pick one to clone into the
+// dedicated dir. CDP is blocked on the default user-data-dir, so we can't use
+// their daily profile in-place — instead we copy it to ~/.xiaoheishu/chrome-profile
+// so the dedicated Chrome looks like a real user (Google login, history, etc).
+
+ipcMain.handle('xiaohongshu:list-profiles', () => {
+  const dataDir = path.join(os.homedir(), 'Library', 'Application Support', 'Google', 'Chrome')
+  const localStatePath = path.join(dataDir, 'Local State')
+  try {
+    const raw = fs.readFileSync(localStatePath, 'utf-8')
+    const state = JSON.parse(raw) as {
+      profile?: { info_cache?: Record<string, { name?: string; user_name?: string; gaia_name?: string }> }
+    }
+    const cache = state.profile?.info_cache ?? {}
+    return Object.entries(cache).map(([folder, info]) => ({
+      folder,
+      fullPath: path.join(dataDir, folder),
+      name: info.name || folder,
+      email: info.user_name || info.gaia_name || '',
+    }))
+  } catch {
+    return []
+  }
+})
+
+ipcMain.handle('xiaohongshu:profile-initialized', () => {
+  // Consider the profile "initialized" if Chrome's Preferences file exists
+  // inside the dedicated dir's Default folder (rsync put it there, or a prior
+  // Chrome launch created it).
+  return fs.existsSync(path.join(DEDICATED_PROFILE, 'Default', 'Preferences'))
+})
+
+ipcMain.handle('xiaohongshu:initialize-profile', async (_e, sourcePath: string) => {
+  const resolved = sourcePath.replace(/^~/, os.homedir())
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`Source profile not found: ${resolved}`)
+  }
+
+  // Refuse to copy while source Chrome is alive — running Chrome holds open
+  // file handles on SQLite (Cookies, History, Login Data) and the snapshot
+  // would be inconsistent.
+  const chromeRunning = spawnSync('pgrep', ['-f', 'Google Chrome.app/Contents/MacOS/Google Chrome'], { encoding: 'utf-8' }).stdout.trim().length > 0
+  if (chromeRunning) {
+    throw new Error('Quit Google Chrome before initializing — open files would corrupt the copy. (Cmd+Q in Chrome, then click again.)')
+  }
+
+  const destDefault = path.join(DEDICATED_PROFILE, 'Default')
+  fs.mkdirSync(destDefault, { recursive: true })
+
+  // rsync excludes: heavy caches that Chrome rebuilds, plus singleton/journal
+  // files that are per-instance and would block the dedicated Chrome.
+  const args = [
+    '-a',
+    '--delete',
+    // Caches Chrome rebuilds on first launch
+    '--exclude=Cache',
+    '--exclude=Code Cache',
+    '--exclude=GPUCache',
+    '--exclude=ShaderCache',
+    '--exclude=GraphiteDawnCache',
+    '--exclude=DawnGraphiteCache',
+    '--exclude=DawnWebGPUCache',
+    '--exclude=Crashpad',
+    '--exclude=ScriptCache',
+    '--exclude=component_crx_cache',
+    '--exclude=optimization_guide_model_store',
+    '--exclude=Service Worker/CacheStorage',
+    '--exclude=Service Worker/ScriptCache',
+    // OPFS storage — web-app file caches, can be huge (multi-GB) and unrelated
+    // to login state. Keep IndexedDB/Local Storage which DO hold session data.
+    '--exclude=File System',
+    '--exclude=blob_storage',
+    // SQLite WAL journals (regenerated) and per-instance lock files
+    '--exclude=*-journal',
+    '--exclude=Singleton*',
+    `${resolved}/`,
+    `${destDefault}/`,
+  ]
+
+  return await new Promise<{ ok: true }>((resolve, reject) => {
+    const child = spawn('rsync', args)
+    let stderr = ''
+    child.stderr.on('data', d => { stderr += d.toString() })
+    child.on('close', code => {
+      if (code === 0) resolve({ ok: true })
+      else reject(new Error(`rsync exited ${code}: ${stderr.slice(0, 500)}`))
+    })
+    child.on('error', err => reject(err))
+  })
 })
 
 ipcMain.handle('settings:test-xhs', async (_e, username: string, password: string) => {
