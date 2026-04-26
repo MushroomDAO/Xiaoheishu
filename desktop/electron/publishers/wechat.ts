@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import { loadSettings } from '../settings'
 
 async function getAccessToken(appId: string, appSecret: string): Promise<string> {
@@ -8,6 +10,30 @@ async function getAccessToken(appId: string, appSecret: string): Promise<string>
     throw new Error(`WeChat token error ${data.errcode}: ${data.errmsg}`)
   }
   return data.access_token
+}
+
+// Upload cover image as permanent material → returns media_id (required by draft API)
+async function uploadCover(token: string, imagePath: string): Promise<string> {
+  const resolved = imagePath.replace(/^~/, require('os').homedir())
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`Cover image not found: ${resolved}`)
+  }
+
+  const url = `https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=${token}&type=image`
+  const fileBytes = fs.readFileSync(resolved)
+  const ext = path.extname(resolved).slice(1).toLowerCase() || 'jpg'
+  const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif' }
+  const mime = mimeMap[ext] || 'image/jpeg'
+
+  const formData = new FormData()
+  formData.append('media', new Blob([fileBytes], { type: mime }), path.basename(resolved))
+
+  const res = await fetch(url, { method: 'POST', body: formData })
+  const data = await res.json() as { media_id?: string; errcode?: number; errmsg?: string }
+  if (!data.media_id) {
+    throw new Error(`WeChat cover upload error ${data.errcode}: ${data.errmsg}`)
+  }
+  return data.media_id
 }
 
 // Convert markdown-ish content to minimal WeChat HTML
@@ -31,7 +57,14 @@ export async function publish(post: Record<string, unknown>) {
     throw new Error('WeChat credentials not configured — go to Settings → 微信公众号')
   }
 
+  if (!post.cover_image) {
+    throw new Error('WeChat requires a cover image — please add one in the editor before publishing')
+  }
+
   const token = await getAccessToken(wechat_app_id, wechat_app_secret)
+
+  // Upload cover as permanent material to get thumb_media_id (required by draft API)
+  const thumbMediaId = await uploadCover(token, String(post.cover_image))
 
   const content = toWechatHtml(String(post.content || ''))
 
@@ -48,6 +81,7 @@ export async function publish(post: Record<string, unknown>) {
           author: '',
           digest: String(post.content || '').slice(0, 120).replace(/\s+/g, ' '),
           content_source_url: '',
+          thumb_media_id: thumbMediaId,
           need_open_comment: 0,
           only_fans_can_comment: 0,
         }],
