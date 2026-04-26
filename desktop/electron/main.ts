@@ -95,30 +95,35 @@ ipcMain.handle('xiaohongshu:cdp-status', async (_e, port: number) => {
 
 ipcMain.handle('xiaohongshu:launch-chrome', async (_e, profileDir: string, port: number) => {
   const resolved = profileDir.replace(/^~/, os.homedir())
-  const chromeBin = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+  const userDataDir = path.dirname(resolved)    // .../Google/Chrome
+  const profileFolder = path.basename(resolved) // Default, Profile 4
 
-  // Kill Chrome and wait until fully exited (profile dir is locked while running)
-  spawnSync('pkill', ['-x', 'Google Chrome'], { encoding: 'utf-8' })
-  const killDeadline = Date.now() + 5000
+  // Step 1: graceful quit via AppleScript (avoids crash-recovery on next launch)
+  spawnSync('osascript', ['-e', 'quit app "Google Chrome"'], { encoding: 'utf-8' })
+
+  // Step 2: wait for ALL Chrome processes to exit (not just the main one)
+  const killDeadline = Date.now() + 6000
   while (Date.now() < killDeadline) {
-    const alive = spawnSync('pgrep', ['-x', 'Google Chrome'], { encoding: 'utf-8' })
+    const alive = spawnSync('pgrep', ['-f', 'Google Chrome'], { encoding: 'utf-8' })
     if (alive.status !== 0) break
-    await new Promise(r => setTimeout(r, 300))
+    await new Promise(r => setTimeout(r, 400))
   }
+  // Force-kill any stubborn remnants (helpers, framework processes)
+  spawnSync('pkill', ['-9', '-f', 'Google Chrome'], { encoding: 'utf-8' })
+  await new Promise(r => setTimeout(r, 800))
 
-  // --user-data-dir = Chrome root (parent of all profiles)
-  // --profile-directory = the specific profile folder name inside that root
-  const userDataDir = path.dirname(resolved)      // e.g. .../Google/Chrome
-  const profileFolder = path.basename(resolved)   // e.g. Default, Profile 4
-
-  spawn(chromeBin, [
+  // Step 3: launch with open -na (new instance, all args honoured since Chrome is dead)
+  // open -na is more reliable than spawning the binary directly on macOS
+  spawnSync('open', [
+    '-na', 'Google Chrome',
+    '--args',
     `--user-data-dir=${userDataDir}`,
     `--profile-directory=${profileFolder}`,
     `--remote-debugging-port=${port}`,
     '--no-first-run',
     '--no-default-browser-check',
     'https://creator.xiaohongshu.com/publish/publish?source=official',
-  ], { detached: true, stdio: 'ignore' }).unref()
+  ], { encoding: 'utf-8' })
 
   return { ok: true }
 })

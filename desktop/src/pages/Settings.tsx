@@ -61,6 +61,17 @@ export default function Settings() {
     }
   }
 
+  function copyLaunchCmd() {
+    const dir = form.xiaohongshu_profile_dir
+    const port = form.xiaohongshu_cdp_port || '9222'
+    if (!dir) { alert('Select a Chrome profile first.'); return }
+    const userDataDir = dir.replace(/\/[^/]+$/, '')  // parent dir
+    const profileFolder = dir.replace(/.*\//, '')     // last segment
+    const cmd = `open -na "Google Chrome" --args --user-data-dir="${userDataDir}" --profile-directory="${profileFolder}" --remote-debugging-port=${port} --no-first-run --no-default-browser-check`
+    navigator.clipboard.writeText(cmd)
+    alert('Command copied! Paste in Terminal after closing Chrome.')
+  }
+
   async function launchChrome() {
     if (!form.xiaohongshu_profile_dir) {
       alert('Please select a Chrome profile directory first.')
@@ -297,6 +308,14 @@ export default function Settings() {
                   {cdpState === 'disconnected' && (
                     <span style={{ fontSize: 12, color: '#f87171' }}>● Not connected — click Check Connection after Chrome opens</span>
                   )}
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <button className="btn" style={{ fontSize: 11, padding: '3px 10px', opacity: 0.7 }} onClick={copyLaunchCmd}>
+                    Copy launch command (manual fallback)
+                  </button>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8 }}>
+                    If auto-launch fails, paste this in Terminal after closing Chrome.
+                  </span>
                 </div>
                 <p style={{ color: '#f87171', marginTop: 8, marginBottom: 0 }}>
                   ⚠ Security: any local process can connect to this debug port. Personal machine only.
