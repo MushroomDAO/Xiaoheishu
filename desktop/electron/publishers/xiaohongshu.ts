@@ -66,7 +66,7 @@ async function doPublish(page: import('playwright').Page, post: Record<string, u
   await page.locator('div.ql-editor, [role="textbox"]').first().fill(String(post.content))
   await page.waitForTimeout(1000)
 
-  await page.locator('.publish-page-publish-btn button.bg-red').click()
+  await page.locator('.publish-page-publish-btn button.bg-red').first().click()
   await page.waitForTimeout(3000)
 
   return page.url()
@@ -150,12 +150,19 @@ export async function loginWithQR(): Promise<void> {
   try {
     await page.goto('https://www.xiaohongshu.com/explore', { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(2000)
-    const loggedIn = await page.locator('.main-container .user .link-wrapper .channel')
+
+    const loggedIn = await page.locator('.main-container .user .link-wrapper .channel').first()
       .isVisible({ timeout: 3000 }).catch(() => false)
     if (!loggedIn) {
-      await page.locator('.main-container .user .link-wrapper .channel')
+      await page.locator('.main-container .user .link-wrapper .channel').first()
         .waitFor({ timeout: 240000 })
     }
+
+    // Visit creator domain so its auth cookies are also captured
+    await page.goto('https://creator.xiaohongshu.com/publish/publish', { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(3000)
+
+    // Save cookies from ALL domains (xiaohongshu.com + creator.xiaohongshu.com)
     saveCookies(await context.cookies())
   } finally {
     await page.close()
